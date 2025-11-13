@@ -102,6 +102,7 @@ def _process_assets(
                     "Authorization": f"token {github_token}",
                     "Accept": "application/octet-stream",
                 },
+                allow_redirects=True,
             )
             response.raise_for_status()
             local_path.write_bytes(response.content)
