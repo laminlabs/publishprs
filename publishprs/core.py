@@ -7,6 +7,7 @@ import tempfile
 from pathlib import Path
 from typing import Any
 
+import lamindb as ln
 import requests
 from dotenv import load_dotenv
 
@@ -78,11 +79,7 @@ def _process_assets(
         return pr_body
 
     print(f"Found {len(asset_urls)} assets to process")
-
-    # late import lamindb so it's only needed if there are assets
-    import lamindb as ln
-
-    ln.setup.login()
+    # ln.setup.login()
     ln.connect(db)
 
     url_mapping = {}
@@ -91,7 +88,7 @@ def _process_assets(
         asset_dir = Path(tmpdir)
 
         for old_url in asset_urls:
-            filename = old_url.split("/")[-1]
+            filename = f"{old_url.split('/')[-1]}.png"
             local_path = asset_dir / filename
 
             # Download asset
