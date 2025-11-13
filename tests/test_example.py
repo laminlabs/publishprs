@@ -20,14 +20,14 @@ def test_publish_pr():
 
     # Initialize publisher
     publisher = Publisher(
-        source_repo="https://github.com/laminlabs/laminhub",
+        source_repo="https://github.com/laminlabs/publishprs",
         target_repo="https://github.com/laminlabs/laminhub-public",
         db="laminlabs/lamin-dev",
     )
 
     # Publish the PR (with close_pr=False to avoid auto-merging in tests)
     url = publisher.publish(
-        pull_id=3820,
+        pull_id=1,
         close_pr=False,  # Don't auto-merge during tests
     )
 
@@ -43,7 +43,7 @@ def test_publish_pr_with_env_db():
 
     # Initialize publisher without explicit db parameter
     publisher = Publisher(
-        source_repo="https://github.com/laminlabs/laminhub",
+        source_repo="https://github.com/laminlabs/publishprs",
         target_repo="https://github.com/laminlabs/laminhub-public",
         db="laminlabs/lamin-dev",
     )
@@ -56,13 +56,13 @@ def test_publisher_initialization():
     """Test Publisher initialization with various inputs."""
     # Test with full URLs
     publisher = Publisher(
-        source_repo="https://github.com/laminlabs/laminhub",
+        source_repo="https://github.com/laminlabs/publishprs",
         target_repo="https://github.com/laminlabs/laminhub-public",
         db="laminlabs/lamin-dev",
     )
 
     assert publisher.source_owner == "laminlabs"
-    assert publisher.source_repo == "laminhub"
+    assert publisher.source_repo == "publishprs"
     assert publisher.target_owner == "laminlabs"
     assert publisher.target_repo == "laminhub-public"
     assert publisher.db == "laminlabs/lamin-dev"
@@ -74,7 +74,7 @@ def test_publisher_initialization():
         db="laminlabs/lamin-dev",
     )
 
-    assert publisher2.source_repo == "laminhub"
+    assert publisher2.source_repo == "publishprs"
     assert publisher2.target_repo == "laminhub-public"
 
 

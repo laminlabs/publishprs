@@ -244,7 +244,8 @@ class Publisher:
         target_repo: Target GitHub repository URL (e.g., "https://github.com/owner/public-repo")
         db: LaminDB instance to upload assets to. If not provided, uses
                  LAMINDB_INSTANCE env var
-        github_token: GitHub token (defaults to GITHUB_TOKEN env var)
+        source_token: GitHub token (defaults to GITHUB_TOKEN env var)
+        target_token: GitHub token for target repo (defaults to GITHUB_TARGET_TOKEN env var)
 
     Example:
         >>> from publishprs import Publisher
@@ -262,7 +263,8 @@ class Publisher:
         source_repo: str,
         target_repo: str,
         db: str | None = None,
-        github_token: str | None = None,
+        source_token: str | None = None,
+        target_token: str | None = None,
     ):
         """Initialize the Publisher.
 
@@ -271,16 +273,22 @@ class Publisher:
             target_repo: Target GitHub repository URL
             db: LaminDB instance (defaults to LAMINDB_INSTANCE env var
                      or "laminlabs/lamin-site-assets")
-            github_token: GitHub token (defaults to GITHUB_TOKEN env var)
+            source_token: GitHub token (defaults to GITHUB_TOKEN env var)
+            target_token: GitHub token for target repo (defaults to GITHUB_TARGET_TOKEN env var)
         """
         self.source_owner, self.source_repo = _parse_github_repo_url(source_repo)
         self.target_owner, self.target_repo = _parse_github_repo_url(target_repo)
         self.db = db or os.environ.get("LAMINDB_INSTANCE")
-        self.github_token = github_token or os.environ.get("GITHUB_TOKEN")
+        self.source_token = source_token or os.environ.get("GITHUB_TOKEN")
+        self.target_token = target_token or os.environ.get("GITHUB_TARGET_TOKEN")
 
-        if not self.github_token:
+        if not self.source_token:
             raise ValueError(
-                "GitHub token required (pass github_token or set GITHUB_TOKEN env var)"
+                "GitHub token required (pass source_token or set GITHUB_TOKEN env var)"
+            )
+        if not self.target_token:
+            raise ValueError(
+                "GitHub token required (pass target_token or set GITHUB_TARGET_TOKEN env var)"
             )
 
     def publish(self, pull_id: int, close_pr: bool = False) -> str:
@@ -296,7 +304,7 @@ class Publisher:
         # Get PR data
         print(f"Fetching PR #{pull_id} from {self.source_owner}/{self.source_repo}")
         pr_data = _get_pr_data(
-            self.source_owner, self.source_repo, pull_id, self.github_token
+            self.source_owner, self.source_repo, pull_id, self.source_token
         )
 
         if not pr_data.get("merged"):
@@ -304,7 +312,7 @@ class Publisher:
 
         # Process assets (download, upload to LaminDB, replace URLs)
         updated_body = _process_assets(
-            pr_data["body"] or "", pull_id, self.github_token, self.db
+            pr_data["body"] or "", pull_id, self.source_token, self.db
         )
 
         # Create PR in target repo
@@ -313,7 +321,7 @@ class Publisher:
             self.target_repo,
             pr_data,
             updated_body,
-            self.github_token,
+            self.target_token,
         )
 
         # Auto-merge if requested
@@ -325,7 +333,7 @@ class Publisher:
 
             # Merge via API
             headers = {
-                "Authorization": f"token {self.github_token}",
+                "Authorization": f"token {self.target_token}",
                 "Accept": "application/vnd.github.v3+json",
             }
             merge_url = f"https://api.github.com/repos/{self.target_owner}/{self.target_repo}/pulls/{created_pr_number}/merge"
