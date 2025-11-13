@@ -1,4 +1,4 @@
-# publishprs: Publish pull requests in a private repo to a public repo
+# publishprs: Publish pull requests from a private repo to a public repo
 
 Install:
 
