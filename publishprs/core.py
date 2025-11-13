@@ -52,7 +52,7 @@ def _get_pr_data(owner: str, repo: str, pr_number: str | int, token: str) -> dic
 
 
 def _process_assets(
-    repo_name: str, pr_body: str, pr_number: str | int, github_token: str, db: str
+    repo_name: str, pr_body: str, pr_number: str | int, github_token: str
 ) -> str:
     """Download assets from PR, upload to LaminDB, and replace URLs.
 
@@ -61,7 +61,6 @@ def _process_assets(
         pr_body: PR description/body text
         pr_number: PR number for organizing assets
         github_token: GitHub token for downloading assets
-        db: LaminDB instance to upload to
 
     Returns:
         Updated PR body with replaced URLs
@@ -80,9 +79,6 @@ def _process_assets(
         return pr_body
 
     print(f"Found {len(asset_urls)} assets to process")
-    ln.setup.login()
-    ln.connect(db)
-
     url_mapping = {}
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -241,8 +237,6 @@ class Publisher:
     Args:
         source_repo: Source GitHub repository URL (e.g., "https://github.com/owner/repo")
         target_repo: Target GitHub repository URL (e.g., "https://github.com/owner/public-repo")
-        db: LaminDB instance to upload assets to. If not provided, uses
-                 LAMINDB_INSTANCE env var
         source_token: GitHub token (defaults to GITHUB_TOKEN env var)
         target_token: GitHub token for target repo (defaults to GITHUB_TARGET_TOKEN env var)
 
@@ -251,7 +245,6 @@ class Publisher:
         >>> publisher = Publisher(
         ...     source_repo="https://github.com/laminlabs/laminhub",
         ...     target_repo="https://github.com/laminlabs/laminhub-public",
-        ...     db="laminlabs/lamin-site-assets"
         ... )
         >>> url = publisher.publish(pull_id=3820, close_pr=True)
         >>> print(f"Published to: {url}")
@@ -261,7 +254,6 @@ class Publisher:
         self,
         source_repo: str,
         target_repo: str,
-        db: str | None = None,
         source_token: str | None = None,
         target_token: str | None = None,
     ):
@@ -277,7 +269,6 @@ class Publisher:
         """
         self.source_owner, self.source_repo = _parse_github_repo_url(source_repo)
         self.target_owner, self.target_repo = _parse_github_repo_url(target_repo)
-        self.db = db or os.environ.get("LAMINDB_INSTANCE")
         load_dotenv()
         self.source_token = source_token or os.environ.get("GITHUB_SOURCE_TOKEN")
         self.target_token = target_token or os.environ.get("GITHUB_TARGET_TOKEN")
@@ -312,7 +303,7 @@ class Publisher:
 
         # Process assets (download, upload to LaminDB, replace URLs)
         updated_body = _process_assets(
-            self.source_repo, pr_data["body"] or "", pull_id, self.source_token, self.db
+            self.source_repo, pr_data["body"] or "", pull_id, self.source_token
         )
 
         # Create PR in target repo
