@@ -198,13 +198,13 @@ def _create_public_pr(
         "Accept": "application/vnd.github.v3+json",
     }
 
-    pr_body = f"""**Original PR:** Private PR #{pr_data["number"]}
-**Author:** @{pr_data["user"]["login"]}
-**Merged:** {pr_data.get("merged_at", "N/A")}
+    pr_body = f"""{updated_body}
 
 ---
 
-{updated_body}"""
+**Author:** @{pr_data["user"]["login"]}
+**Original PR:** #{pr_data["number"]}
+"""
 
     create_pr_url = f"https://api.github.com/repos/{dest_owner}/{dest_repo}/pulls"
     response = requests.post(

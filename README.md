@@ -18,3 +18,5 @@ publisher = Publisher(
 url = publisher.publish(pull_id=3820)
 print(f"Published to: {url}")
 ```
+
+Note that downloading assets from GitHub URLs of the form `https://github.com/user-attachments/assets/47729149-22a5-481b-beb4-69bb609ae054` neither works with the auto-generated `GITHUB_TOKEN` within GitHub Actions nor the fine-grained modern access tokens. A classic token is needed.

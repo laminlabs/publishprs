@@ -14,7 +14,7 @@ def test_publish_pr():
     publisher = Publisher(
         source_repo="https://github.com/laminlabs/publishprs",
         target_repo="https://github.com/laminlabs/laminhub-public",
-        db="laminlabs/lamin-dev",
+        db="laminlabs/lamin-site-assets",
     )
     url = publisher.publish(
         pull_id=1,
@@ -27,17 +27,17 @@ def test_publish_pr():
 def test_env_db():
     """Test that LAMINDB_INSTANCE env var is respected."""
     # Set the environment variable
-    os.environ["LAMINDB_INSTANCE"] = "laminlabs/lamin-dev"
+    os.environ["LAMINDB_INSTANCE"] = "laminlabs/lamin-site-assets"
 
     # Initialize publisher without explicit db parameter
     publisher = Publisher(
         source_repo="https://github.com/laminlabs/publishprs",
         target_repo="https://github.com/laminlabs/laminhub-public",
-        db="laminlabs/lamin-dev",
+        db="laminlabs/lamin-site-assets",
     )
 
     # Verify the db was picked up from env var
-    assert publisher.db == "laminlabs/lamin-dev"
+    assert publisher.db == "laminlabs/lamin-site-assets"
 
 
 def test_publisher_initialization():
@@ -46,20 +46,20 @@ def test_publisher_initialization():
     publisher = Publisher(
         source_repo="https://github.com/laminlabs/publishprs",
         target_repo="https://github.com/laminlabs/laminhub-public",
-        db="laminlabs/lamin-dev",
+        db="laminlabs/lamin-site-assets",
     )
 
     assert publisher.source_owner == "laminlabs"
     assert publisher.source_repo == "publishprs"
     assert publisher.target_owner == "laminlabs"
     assert publisher.target_repo == "laminhub-public"
-    assert publisher.db == "laminlabs/lamin-dev"
+    assert publisher.db == "laminlabs/lamin-site-assets"
 
     # Test with .git suffix
     publisher2 = Publisher(
         source_repo="https://github.com/laminlabs/publishprs.git",
         target_repo="https://github.com/laminlabs/laminhub-public.git",
-        db="laminlabs/lamin-dev",
+        db="laminlabs/lamin-site-assets",
     )
 
     assert publisher2.source_repo == "publishprs"
