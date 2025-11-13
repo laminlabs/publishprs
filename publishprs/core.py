@@ -79,18 +79,12 @@ def _process_assets(
 
     print(f"Found {len(asset_urls)} assets to process")
 
-    # Import lamindb (late import so it's only needed if there are assets)
-    try:
-        import lamindb as ln
-    except ImportError as error:
-        raise ImportError(
-            "lamindb is required to process assets. Install with: pip install lamindb"
-        ) from error
+    # late import lamindb so it's only needed if there are assets
+    import lamindb as ln
 
     ln.setup.login()
     ln.connect(db)
 
-    # Download, upload, and map URLs
     url_mapping = {}
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -118,7 +112,7 @@ def _process_assets(
             artifact = ln.Artifact(local_path, key=key).save()
 
             # Map to new URL
-            new_url = f"https://lamin.ai/{db}/artifact/{artifact.uid}"
+            new_url = artifact.path.to_url()
             url_mapping[old_url] = new_url
             print(f"✓ Mapped: {old_url} -> {new_url}")
 
