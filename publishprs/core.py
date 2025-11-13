@@ -292,12 +292,12 @@ class Publisher:
                 "GitHub token required (pass target_token or set GITHUB_TARGET_TOKEN env var)"
             )
 
-    def publish(self, pull_id: int, close_pr: bool = False) -> str:
+    def publish(self, pull_id: int, close_pr: bool = True) -> str:
         """Publish a private PR to the public repository.
 
         Args:
             pull_id: PR number/ID from the source repository
-            close_pr: Whether to auto-merge the created PR (default: False)
+            close_pr: Whether to auto-merge the created PR (default: True)
 
         Returns:
             URL of the created PR in the target repository
