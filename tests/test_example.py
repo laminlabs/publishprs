@@ -2,41 +2,33 @@
 
 import os
 
-import pytest
 from publishprs import Publisher
 
 
 def test_publish_pr():
-    """Test publishing a PR from laminhub to laminhub-public.
+    """Test publishing a PR from publishprs to laminhub-public.
 
-    This test uses PR #3820 from the private laminhub repo which contains
+    This test uses PR #3820 from the private publishprs repo which contains
     user-attached images that need to be processed and uploaded to LaminDB.
     """
-    # Verify required environment variables are set
-    assert os.environ.get("GITHUB_TOKEN"), "GITHUB_TOKEN environment variable required"
-    assert os.environ.get("LAMIN_API_KEY"), (
-        "LAMIN_API_KEY environment variable required"
-    )
-
-    # Initialize publisher
     publisher = Publisher(
         source_repo="https://github.com/laminlabs/publishprs",
         target_repo="https://github.com/laminlabs/laminhub-public",
         db="laminlabs/lamin-dev",
     )
-
-    # Publish the PR (with close_pr=False to avoid auto-merging in tests)
     url = publisher.publish(
         pull_id=1,
-        close_pr=False,  # Don't auto-merge during tests
+        close_pr=True,
     )
 
     # Verify we got a valid PR URL back
     assert url.startswith("https://github.com/laminlabs/laminhub-public/pull/")
     assert url.split("/")[-1].isdigit()  # PR number should be numeric
 
+    quit()
 
-def test_publish_pr_with_env_db():
+
+def test_env_db():
     """Test that LAMINDB_INSTANCE env var is respected."""
     # Set the environment variable
     os.environ["LAMINDB_INSTANCE"] = "laminlabs/lamin-dev"
@@ -69,15 +61,10 @@ def test_publisher_initialization():
 
     # Test with .git suffix
     publisher2 = Publisher(
-        source_repo="https://github.com/laminlabs/laminhub.git",
+        source_repo="https://github.com/laminlabs/publishprs.git",
         target_repo="https://github.com/laminlabs/laminhub-public.git",
         db="laminlabs/lamin-dev",
     )
 
     assert publisher2.source_repo == "publishprs"
     assert publisher2.target_repo == "laminhub-public"
-
-
-if __name__ == "__main__":
-    # Run the tests
-    pytest.main([__file__, "-v"])

@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 import requests
+from dotenv import load_dotenv
 
 
 def _parse_github_repo_url(url: str) -> tuple[str | Any, ...]:
@@ -182,16 +183,15 @@ def _create_public_pr(
             check=True,
         )
 
-        # Create branch
         subprocess.run(["git", "checkout", "-b", branch_name], cwd=repo_dir, check=True)
 
-        # Create dummy file
-        (repo_dir / ".pr-sync").write_text(
-            f"This PR syncs information from private PR #{pr_data['number']}"
+        existing_content = (repo_dir / "docs/source-prs.md").read_text()
+        (repo_dir / "docs/source-prs.md").write_text(
+            f"{pr_data['number']}\n{existing_content}"
         )
 
         # Commit and push
-        subprocess.run(["git", "add", ".pr-sync"], cwd=repo_dir, check=True)
+        subprocess.run(["git", "add", "docs/source-prs.md"], cwd=repo_dir, check=True)
         subprocess.run(
             ["git", "commit", "-m", f"Sync PR #{pr_data['number']}"],
             cwd=repo_dir,
@@ -279,6 +279,7 @@ class Publisher:
         self.source_owner, self.source_repo = _parse_github_repo_url(source_repo)
         self.target_owner, self.target_repo = _parse_github_repo_url(target_repo)
         self.db = db or os.environ.get("LAMINDB_INSTANCE")
+        load_dotenv()
         self.source_token = source_token or os.environ.get("GITHUB_TOKEN")
         self.target_token = target_token or os.environ.get("GITHUB_TARGET_TOKEN")
 
