@@ -125,13 +125,19 @@ def _process_assets(
 
 
 def _create_public_pr(
-    dest_owner: str, dest_repo: str, pr_data: dict, updated_body: str, github_token: str
+    dest_owner: str,
+    dest_repo: str,
+    source_repo: str,
+    pr_data: dict,
+    updated_body: str,
+    github_token: str,
 ) -> str:
     """Create PR in public repository.
 
     Args:
         dest_owner: Destination repository owner
         dest_repo: Destination repository name
+        source_repo: Source repository name
         pr_data: Original PR data
         updated_body: Updated PR body with replaced asset URLs
         github_token: GitHub token
@@ -202,8 +208,8 @@ def _create_public_pr(
 
 ---
 
-**Author:** @{pr_data["user"]["login"]}
-**Original PR:** #{pr_data["number"]}
+Author: @{pr_data["user"]["login"]}
+Original PR: https://github.com/{dest_owner}/{source_repo}/pull/{pr_data["number"]}
 """
 
     create_pr_url = f"https://api.github.com/repos/{dest_owner}/{dest_repo}/pulls"
@@ -313,6 +319,7 @@ class Publisher:
         pr_url = _create_public_pr(
             self.target_owner,
             self.target_repo,
+            self.source_repo,
             pr_data,
             updated_body,
             self.target_token,
