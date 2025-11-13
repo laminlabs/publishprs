@@ -2,8 +2,14 @@
 
 Install:
 
-```bash
+```shell
 pip install publishprs
+```
+
+Connect to the LaminDB instance to be used for assets management:
+
+```shell
+lamin connect account/instance
 ```
 
 Publish a PR:
@@ -13,7 +19,6 @@ from publishprs import Publisher
 publisher = Publisher(
     source_repo="https://github.com/laminlabs/laminhub",
     target_repo="https://github.com/laminlabs/laminhub-public",
-    db="laminlabs/lamin-site-assets"
 )
 url = publisher.publish(pull_id=3820)
 print(f"Published to: {url}")
