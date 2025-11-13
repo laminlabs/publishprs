@@ -52,11 +52,12 @@ def _get_pr_data(owner: str, repo: str, pr_number: str | int, token: str) -> dic
 
 
 def _process_assets(
-    pr_body: str, pr_number: str | int, github_token: str, db: str
+    repo_name: str, pr_body: str, pr_number: str | int, github_token: str, db: str
 ) -> str:
     """Download assets from PR, upload to LaminDB, and replace URLs.
 
     Args:
+        repo_name: Repository name for organizing assets
         pr_body: PR description/body text
         pr_number: PR number for organizing assets
         github_token: GitHub token for downloading assets
@@ -105,7 +106,7 @@ def _process_assets(
             local_path.write_bytes(response.content)
 
             # Upload to LaminDB
-            key = f"pr-assets/pr-{pr_number}/{filename}"
+            key = f"{repo_name}/pr-assets/pr-{pr_number}/{filename}"
             print(f"Uploading to LaminDB: {key}")
             artifact = ln.Artifact(local_path, key=key).save()
 
@@ -305,7 +306,7 @@ class Publisher:
 
         # Process assets (download, upload to LaminDB, replace URLs)
         updated_body = _process_assets(
-            pr_data["body"] or "", pull_id, self.source_token, self.db
+            self.source_repo, pr_data["body"] or "", pull_id, self.source_token, self.db
         )
 
         # Create PR in target repo
