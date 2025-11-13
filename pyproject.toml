@@ -9,11 +9,9 @@ authors = [{name = "Lamin Labs", email = "open-source@lamin.ai"}]
 readme = "README.md"
 dynamic = ["version", "description"]
 dependencies = [
-    "pandas",
+    "lamindb",
     "requests",
     "dotenv",
-    "seaborn",
-    "tqdm",
 ]
 
 [project.urls]

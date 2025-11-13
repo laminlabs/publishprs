@@ -20,7 +20,7 @@ jobs:
 
       - name: Install dependencies
         run: |
-          pip install requests lamindb pytest .
+          pip install pytest .
 
       - name: Run tests
         env:
