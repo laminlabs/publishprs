@@ -80,7 +80,7 @@ def _process_assets(
         return pr_body
 
     print(f"Found {len(asset_urls)} assets to process")
-    # ln.setup.login()
+    ln.setup.login()
     ln.connect(db)
 
     url_mapping = {}
