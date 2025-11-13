@@ -1,0 +1,318 @@
+"""Publish private PRs to public repos with LaminDB asset hosting."""
+
+import os
+import re
+import requests
+from pathlib import Path
+from typing import Optional, Union
+import tempfile
+import subprocess
+
+
+def _parse_github_repo_url(url: str) -> tuple[str, str]:
+    """Parse GitHub repository URL into owner and repo.
+    
+    Args:
+        url: GitHub repo URL like "https://github.com/owner/repo"
+        
+    Returns:
+        Tuple of (owner, repo)
+    """
+    match = re.match(r"https://github\.com/([^/]+)/([^/]+?)(?:\.git)?/?$", url)
+    if not match:
+        raise ValueError(f"Invalid GitHub repository URL: {url}")
+    return match.groups()
+
+
+def _get_pr_data(owner: str, repo: str, pr_number: Union[str, int], token: str) -> dict:
+    """Fetch PR data from GitHub API.
+    
+    Args:
+        owner: Repository owner
+        repo: Repository name
+        pr_number: PR number
+        token: GitHub token
+        
+    Returns:
+        PR data dictionary
+    """
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    url = f"https://api.github.com/repos/{owner}/{repo}/pulls/{pr_number}"
+    response = requests.get(url, headers=headers)
+    response.raise_for_status()
+    
+    return response.json()
+
+
+def _process_assets(
+    pr_body: str,
+    pr_number: Union[str, int],
+    github_token: str,
+    db: str
+) -> str:
+    """Download assets from PR, upload to LaminDB, and replace URLs.
+    
+    Args:
+        pr_body: PR description/body text
+        pr_number: PR number for organizing assets
+        github_token: GitHub token for downloading assets
+        db: LaminDB instance to upload to
+        
+    Returns:
+        Updated PR body with replaced URLs
+    """
+    # Find all GitHub asset URLs
+    asset_urls = re.findall(r'https://github\.com/user-attachments/assets/[a-f0-9\-]+', pr_body)
+    asset_urls += re.findall(r'https://user-images\.githubusercontent\.com/[0-9]+/[a-f0-9\-]+', pr_body)
+    asset_urls = list(set(asset_urls))  # Remove duplicates
+    
+    if not asset_urls:
+        print("No assets found in PR description")
+        return pr_body
+    
+    print(f"Found {len(asset_urls)} assets to process")
+    
+    # Import lamindb (late import so it's only needed if there are assets)
+    try:
+        import lamindb as ln
+    except ImportError:
+        raise ImportError("lamindb is required to process assets. Install with: pip install lamindb")
+    
+    ln.setup.login()
+    ln.connect(db)
+    
+    # Download, upload, and map URLs
+    url_mapping = {}
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        asset_dir = Path(tmpdir)
+        
+        for old_url in asset_urls:
+            filename = old_url.split('/')[-1]
+            local_path = asset_dir / filename
+            
+            # Download asset
+            print(f"Downloading: {old_url}")
+            response = requests.get(
+                old_url,
+                headers={
+                    'Authorization': f'token {github_token}',
+                    'Accept': 'application/octet-stream'
+                }
+            )
+            response.raise_for_status()
+            local_path.write_bytes(response.content)
+            
+            # Upload to LaminDB
+            key = f"pr-assets/pr-{pr_number}/{filename}"
+            print(f"Uploading to LaminDB: {key}")
+            artifact = ln.Artifact(local_path, key=key).save()
+            
+            # Map to new URL
+            new_url = f"https://lamin.ai/{db}/artifact/{artifact.uid}"
+            url_mapping[old_url] = new_url
+            print(f"✓ Mapped: {old_url} -> {new_url}")
+    
+    # Replace URLs in description
+    new_description = pr_body
+    for old_url, new_url in url_mapping.items():
+        new_description = new_description.replace(old_url, new_url)
+    
+    print(f"✓ Processed {len(url_mapping)} assets")
+    return new_description
+
+
+def _create_public_pr(
+    dest_owner: str,
+    dest_repo: str,
+    pr_data: dict,
+    updated_body: str,
+    github_token: str
+) -> str:
+    """Create PR in public repository.
+    
+    Args:
+        dest_owner: Destination repository owner
+        dest_repo: Destination repository name
+        pr_data: Original PR data
+        updated_body: Updated PR body with replaced asset URLs
+        github_token: GitHub token
+        
+    Returns:
+        URL of created PR
+    """
+    # Create branch name
+    branch_name = f"pr-sync-{pr_data['number']}"
+    
+    # Create a dummy file and branch
+    with tempfile.TemporaryDirectory() as tmpdir:
+        repo_dir = Path(tmpdir) / dest_repo
+        
+        # Clone repo
+        subprocess.run(
+            ["git", "clone", "--depth=1", f"https://{github_token}@github.com/{dest_owner}/{dest_repo}.git", str(repo_dir)],
+            check=True,
+            capture_output=True
+        )
+        
+        # Configure git
+        subprocess.run(["git", "config", "user.name", "github-actions[bot]"], cwd=repo_dir, check=True)
+        subprocess.run(["git", "config", "user.email", "github-actions[bot]@users.noreply.github.com"], cwd=repo_dir, check=True)
+        
+        # Create branch
+        subprocess.run(["git", "checkout", "-b", branch_name], cwd=repo_dir, check=True)
+        
+        # Create dummy file
+        (repo_dir / ".pr-sync").write_text(f"This PR syncs information from private PR #{pr_data['number']}")
+        
+        # Commit and push
+        subprocess.run(["git", "add", ".pr-sync"], cwd=repo_dir, check=True)
+        subprocess.run(["git", "commit", "-m", f"Sync PR #{pr_data['number']}"], cwd=repo_dir, check=True)
+        subprocess.run(["git", "push", "origin", branch_name], cwd=repo_dir, check=True)
+    
+    # Create PR using GitHub API
+    headers = {
+        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github.v3+json"
+    }
+    
+    pr_body = f"""**Original PR:** Private PR #{pr_data['number']}
+**Author:** @{pr_data['user']['login']}
+**Merged:** {pr_data.get('merged_at', 'N/A')}
+
+---
+
+{updated_body}"""
+    
+    create_pr_url = f"https://api.github.com/repos/{dest_owner}/{dest_repo}/pulls"
+    response = requests.post(
+        create_pr_url,
+        json={
+            "title": pr_data['title'],
+            "body": pr_body,
+            "head": branch_name,
+            "base": "main"
+        },
+        headers=headers
+    )
+    response.raise_for_status()
+    
+    created_pr = response.json()
+    print(f"✓ Created PR: {created_pr['html_url']}")
+    
+    return created_pr['html_url']
+
+
+class Publisher:
+    """Publisher for syncing private PRs to public repositories with LaminDB asset hosting.
+    
+    Downloads any GitHub-hosted assets (user-attachments, user-images) from the
+    source PR, uploads them to LaminDB, and creates a new PR in the destination
+    repository with updated asset URLs.
+    
+    Args:
+        source_repo: Source GitHub repository URL (e.g., "https://github.com/owner/repo")
+        target_repo: Target GitHub repository URL (e.g., "https://github.com/owner/public-repo")
+        db: LaminDB instance to upload assets to. If not provided, uses 
+                 LAMINDB_INSTANCE env var
+        github_token: GitHub token (defaults to GITHUB_TOKEN env var)
+        
+    Example:
+        >>> from publishprs import Publisher
+        >>> publisher = Publisher(
+        ...     source_repo="https://github.com/laminlabs/laminhub",
+        ...     target_repo="https://github.com/laminlabs/laminhub-public",
+        ...     db="laminlabs/lamin-site-assets"
+        ... )
+        >>> url = publisher.publish(pull_id=3820, close_pr=True)
+        >>> print(f"Published to: {url}")
+    """
+    
+    def __init__(
+        self,
+        source_repo: str,
+        target_repo: str,
+        db: Optional[str] = None,
+        github_token: Optional[str] = None
+    ):
+        """Initialize the Publisher.
+        
+        Args:
+            source_repo: Source GitHub repository URL
+            target_repo: Target GitHub repository URL
+            db: LaminDB instance (defaults to LAMINDB_INSTANCE env var 
+                     or "laminlabs/lamin-site-assets")
+            github_token: GitHub token (defaults to GITHUB_TOKEN env var)
+        """
+        self.source_owner, self.source_repo = _parse_github_repo_url(source_repo)
+        self.target_owner, self.target_repo = _parse_github_repo_url(target_repo)
+        self.db = db or os.environ.get("LAMINDB_INSTANCE")
+        self.github_token = github_token or os.environ.get("GITHUB_TOKEN")
+        
+        if not self.github_token:
+            raise ValueError("GitHub token required (pass github_token or set GITHUB_TOKEN env var)")
+    
+    def publish(
+        self,
+        pull_id: int,
+        close_pr: bool = False
+    ) -> str:
+        """Publish a private PR to the public repository.
+        
+        Args:
+            pull_id: PR number/ID from the source repository
+            close_pr: Whether to auto-merge the created PR (default: False)
+            
+        Returns:
+            URL of the created PR in the target repository
+        """
+        # Get PR data
+        print(f"Fetching PR #{pull_id} from {self.source_owner}/{self.source_repo}")
+        pr_data = _get_pr_data(self.source_owner, self.source_repo, pull_id, self.github_token)
+        
+        if not pr_data.get('merged'):
+            print("Warning: PR is not merged")
+        
+        # Process assets (download, upload to LaminDB, replace URLs)
+        updated_body = _process_assets(
+            pr_data['body'] or "",
+            pull_id,
+            self.github_token,
+            self.db
+        )
+        
+        # Create PR in target repo
+        pr_url = _create_public_pr(
+            self.target_owner,
+            self.target_repo,
+            pr_data,
+            updated_body,
+            self.github_token
+        )
+        
+        # Auto-merge if requested
+        if close_pr:
+            print("Auto-merging PR...")
+            
+            # Get the created PR number
+            created_pr_number = pr_url.split('/')[-1]
+            
+            # Merge via API
+            headers = {
+                "Authorization": f"token {self.github_token}",
+                "Accept": "application/vnd.github.v3+json"
+            }
+            merge_url = f"https://api.github.com/repos/{self.target_owner}/{self.target_repo}/pulls/{created_pr_number}/merge"
+            response = requests.put(
+                merge_url,
+                json={"merge_method": "squash"},
+                headers=headers
+            )
+            response.raise_for_status()
+            print("✓ PR merged")
+        
+        return pr_url
