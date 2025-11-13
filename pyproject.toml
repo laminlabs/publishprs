@@ -122,7 +122,9 @@ lint.ignore = [
     # subprocess` call: check for execution of untrusted input - https://github.com/PyCQA/bandit/issues/333
     "S603",
     # Starting a process with a partial executable path
-    "S607"
+    "S607",
+    # Requests call without timeout
+    "S113",
 ]
 
 [tool.ruff.lint.pydocstyle]
