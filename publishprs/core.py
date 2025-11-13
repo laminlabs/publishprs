@@ -52,7 +52,7 @@ def _get_pr_data(owner: str, repo: str, pr_number: str | int, token: str) -> dic
 
 
 def _process_assets(
-    repo_name: str, pr_body: str, pr_number: str | int, github_token: str, db: str
+    repo_name: str, pr_body: str, pr_number: str | int, github_token: str
 ) -> str:
     """Download assets from PR, upload to LaminDB, and replace URLs.
 
@@ -61,7 +61,6 @@ def _process_assets(
         pr_body: PR description/body text
         pr_number: PR number for organizing assets
         github_token: GitHub token for downloading assets
-        db: LaminDB instance to upload to
 
     Returns:
         Updated PR body with replaced URLs
@@ -80,9 +79,6 @@ def _process_assets(
         return pr_body
 
     print(f"Found {len(asset_urls)} assets to process")
-    ln.setup.login()
-    ln.connect(db)
-
     url_mapping = {}
 
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -310,9 +306,12 @@ class Publisher:
         if not pr_data.get("merged"):
             print("Warning: PR is not merged")
 
+        ln.setup.login()
+        ln.connect(self.db)
+
         # Process assets (download, upload to LaminDB, replace URLs)
         updated_body = _process_assets(
-            self.source_repo, pr_data["body"] or "", pull_id, self.source_token, self.db
+            self.source_repo, pr_data["body"] or "", pull_id, self.source_token
         )
 
         # Create PR in target repo
