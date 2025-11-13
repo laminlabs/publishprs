@@ -266,19 +266,19 @@ class Publisher:
             target_repo: Target GitHub repository URL
             db: LaminDB instance (defaults to LAMINDB_INSTANCE env var
                      or "laminlabs/lamin-site-assets")
-            source_token: GitHub token (defaults to GITHUB_TOKEN env var)
+            source_token: GitHub token (defaults to GITHUB_SOURCE_TOKEN env var)
             target_token: GitHub token for target repo (defaults to GITHUB_TARGET_TOKEN env var)
         """
         self.source_owner, self.source_repo = _parse_github_repo_url(source_repo)
         self.target_owner, self.target_repo = _parse_github_repo_url(target_repo)
         self.db = db or os.environ.get("LAMINDB_INSTANCE")
         load_dotenv()
-        self.source_token = source_token or os.environ.get("GITHUB_TOKEN")
+        self.source_token = source_token or os.environ.get("GITHUB_SOURCE_TOKEN")
         self.target_token = target_token or os.environ.get("GITHUB_TARGET_TOKEN")
 
         if not self.source_token:
             raise ValueError(
-                "GitHub token required (pass source_token or set GITHUB_TOKEN env var)"
+                "GitHub token required (pass source_token or set GITHUB_SOURCE_TOKEN env var)"
             )
         if not self.target_token:
             raise ValueError(
