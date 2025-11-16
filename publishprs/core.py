@@ -144,6 +144,23 @@ def _create_public_pr(
     # Create branch name
     branch_name = f"pr-sync-{pr_data['number']}"
 
+    # Get original author info from the PR's head commit
+    # This gives us the actual email used in commits, not a privacy email
+    headers = {
+        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+    # Fetch commits from the original PR to get author info
+    commits_url = pr_data["commits_url"]
+    commits_response = requests.get(commits_url, headers=headers)
+    commits_response.raise_for_status()
+    commits = commits_response.json()
+
+    # Use the author info from the first commit in the PR
+    author_name = commits[0]["commit"]["author"]["name"]
+    author_email = commits[0]["commit"]["author"]["email"]
+
     # Create a dummy file and branch
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_dir = Path(tmpdir) / dest_repo
@@ -161,19 +178,14 @@ def _create_public_pr(
             capture_output=True,
         )
 
-        # Configure git
+        # Configure git with original author info
         subprocess.run(
-            ["git", "config", "user.name", "github-actions[bot]"],
+            ["git", "config", "user.name", author_name],
             cwd=repo_dir,
             check=True,
         )
         subprocess.run(
-            [
-                "git",
-                "config",
-                "user.email",
-                "github-actions[bot]@users.noreply.github.com",
-            ],
+            ["git", "config", "user.email", author_email],
             cwd=repo_dir,
             check=True,
         )
@@ -184,12 +196,25 @@ def _create_public_pr(
         (repo_dir / "docs/source-prs.md").write_text(
             f"{pr_data['number']}\n{existing_content}"
         )
-
-        # Commit and push
         subprocess.run(["git", "add", "docs/source-prs.md"], cwd=repo_dir, check=True)
+
+        # Set environment variables to override committer info
+        env = os.environ.copy()
+        env["GIT_COMMITTER_NAME"] = author_name
+        env["GIT_COMMITTER_EMAIL"] = author_email
+
+        # git author info is set via --author flag
         subprocess.run(
-            ["git", "commit", "-m", f"Sync PR #{pr_data['number']}"],
+            [
+                "git",
+                "commit",
+                "-m",
+                f"Sync PR #{pr_data['number']}",
+                "--author",
+                f"{author_name} <{author_email}>",
+            ],
             cwd=repo_dir,
+            env=env,
             check=True,
         )
         subprocess.run(["git", "push", "origin", branch_name], cwd=repo_dir, check=True)
@@ -200,11 +225,11 @@ def _create_public_pr(
         "Accept": "application/vnd.github.v3+json",
     }
 
+    # Remove the author attribution footer
     pr_body = f"""{updated_body}
 
 ---
 
-Author: @{pr_data["user"]["login"]}
 Original PR: https://github.com/{dest_owner}/{source_repo}/pull/{pr_data["number"]}
 """
 
@@ -329,6 +354,8 @@ class Publisher:
                 "Accept": "application/vnd.github.v3+json",
             }
             merge_url = f"https://api.github.com/repos/{self.target_owner}/{self.target_repo}/pulls/{created_pr_number}/merge"
+            # only if we rebase we maintain the identity of the original user
+            # otherwise the PR author (for which no on-behalf flow is possible) will be the committer on main
             response = requests.put(
                 merge_url, json={"merge_method": "squash"}, headers=headers
             )
