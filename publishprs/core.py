@@ -144,9 +144,22 @@ def _create_public_pr(
     # Create branch name
     branch_name = f"pr-sync-{pr_data['number']}"
 
-    # Get original author info
-    author_name = pr_data["user"]["login"]
-    author_email = f"{pr_data['user']['id']}+{author_name}@users.noreply.github.com"
+    # Get original author info from the PR's head commit
+    # This gives us the actual email used in commits, not a privacy email
+    headers = {
+        "Authorization": f"token {github_token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+    # Fetch commits from the original PR to get author info
+    commits_url = pr_data["commits_url"]
+    commits_response = requests.get(commits_url, headers=headers)
+    commits_response.raise_for_status()
+    commits = commits_response.json()
+
+    # Use the author info from the first commit in the PR
+    author_name = commits[0]["commit"]["author"]["name"]
+    author_email = commits[0]["commit"]["author"]["email"]
 
     # Create a dummy file and branch
     with tempfile.TemporaryDirectory() as tmpdir:
