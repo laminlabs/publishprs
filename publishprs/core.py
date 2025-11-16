@@ -357,7 +357,7 @@ class Publisher:
             # only if we rebase we maintain the identity of the original user
             # otherwise the PR author (for which no on-behalf flow is possible) will be the committer on main
             response = requests.put(
-                merge_url, json={"merge_method": "rebase"}, headers=headers
+                merge_url, json={"merge_method": "squash"}, headers=headers
             )
             response.raise_for_status()
             print("✓ PR merged")
