@@ -354,8 +354,10 @@ class Publisher:
                 "Accept": "application/vnd.github.v3+json",
             }
             merge_url = f"https://api.github.com/repos/{self.target_owner}/{self.target_repo}/pulls/{created_pr_number}/merge"
+            # only if we rebase we maintain the identity of the original user
+            # otherwise the PR author (for which no on-behalf flow is possible) will be the committer on main
             response = requests.put(
-                merge_url, json={"merge_method": "squash"}, headers=headers
+                merge_url, json={"merge_method": "rebase"}, headers=headers
             )
             response.raise_for_status()
             print("✓ PR merged")
