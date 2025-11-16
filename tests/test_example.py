@@ -15,7 +15,7 @@ def test_publish_pr():
     )
     url = publisher.publish(
         pull_id=4,
-        close_pr=False,
+        close_pr=True,
     )
     assert url.startswith("https://github.com/laminlabs/laminhub-public/pull/")
     assert url.split("/")[-1].isdigit()  # PR number should be numeric
