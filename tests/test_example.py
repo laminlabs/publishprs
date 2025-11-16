@@ -14,7 +14,7 @@ def test_publish_pr():
         target_repo="https://github.com/laminlabs/laminhub-public",
     )
     url = publisher.publish(
-        pull_id=1,
+        pull_id=4,
         close_pr=False,
     )
     assert url.startswith("https://github.com/laminlabs/laminhub-public/pull/")
