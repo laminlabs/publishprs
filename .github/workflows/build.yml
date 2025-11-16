@@ -29,6 +29,6 @@ jobs:
       - name: Run tests
         env:
           GITHUB_SOURCE_TOKEN: ${{ secrets.GH_CLASSIC_TOKEN_LAMINHUB_USER_ASSETS_FALEXWOLF }}
-          GITHUB_TARGET_TOKEN: ${{ secrets.LAMIN_BUILD_DOCS }}
+          GH_LAMINHUB_PUBLIC_SUNNYOSUN: ${{ secrets.GH_LAMINHUB_PUBLIC_SUNNYOSUN }}
         run: |
           pytest tests/ -v
