@@ -144,6 +144,10 @@ def _create_public_pr(
     # Create branch name
     branch_name = f"pr-sync-{pr_data['number']}"
 
+    # Get original author info
+    author_name = pr_data["user"]["login"]
+    author_email = f"{pr_data['user']['id']}+{author_name}@users.noreply.github.com"
+
     # Create a dummy file and branch
     with tempfile.TemporaryDirectory() as tmpdir:
         repo_dir = Path(tmpdir) / dest_repo
@@ -161,19 +165,14 @@ def _create_public_pr(
             capture_output=True,
         )
 
-        # Configure git
+        # Configure git with original author info
         subprocess.run(
-            ["git", "config", "user.name", "github-actions[bot]"],
+            ["git", "config", "user.name", author_name],
             cwd=repo_dir,
             check=True,
         )
         subprocess.run(
-            [
-                "git",
-                "config",
-                "user.email",
-                "github-actions[bot]@users.noreply.github.com",
-            ],
+            ["git", "config", "user.email", author_email],
             cwd=repo_dir,
             check=True,
         )
@@ -185,10 +184,17 @@ def _create_public_pr(
             f"{pr_data['number']}\n{existing_content}"
         )
 
-        # Commit and push
+        # Commit with original author info
         subprocess.run(["git", "add", "docs/source-prs.md"], cwd=repo_dir, check=True)
         subprocess.run(
-            ["git", "commit", "-m", f"Sync PR #{pr_data['number']}"],
+            [
+                "git",
+                "commit",
+                "-m",
+                f"Sync PR #{pr_data['number']}",
+                "--author",
+                f"{author_name} <{author_email}>",
+            ],
             cwd=repo_dir,
             check=True,
         )
@@ -200,11 +206,11 @@ def _create_public_pr(
         "Accept": "application/vnd.github.v3+json",
     }
 
+    # Remove the author attribution footer
     pr_body = f"""{updated_body}
 
 ---
 
-Author: @{pr_data["user"]["login"]}
 Original PR: https://github.com/{dest_owner}/{source_repo}/pull/{pr_data["number"]}
 """
 
