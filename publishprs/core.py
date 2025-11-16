@@ -196,9 +196,14 @@ def _create_public_pr(
         (repo_dir / "docs/source-prs.md").write_text(
             f"{pr_data['number']}\n{existing_content}"
         )
-
-        # Commit with original author info
         subprocess.run(["git", "add", "docs/source-prs.md"], cwd=repo_dir, check=True)
+
+        # Set environment variables to override committer info
+        env = os.environ.copy()
+        env["GIT_COMMITTER_NAME"] = author_name
+        env["GIT_COMMITTER_EMAIL"] = author_email
+
+        # git author info is set via --author flag
         subprocess.run(
             [
                 "git",
@@ -209,6 +214,7 @@ def _create_public_pr(
                 f"{author_name} <{author_email}>",
             ],
             cwd=repo_dir,
+            env=env,
             check=True,
         )
         subprocess.run(["git", "push", "origin", branch_name], cwd=repo_dir, check=True)
