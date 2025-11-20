@@ -51,6 +51,24 @@ def _get_pr_data(owner: str, repo: str, pr_number: str | int, token: str) -> dic
     return response.json()
 
 
+def _get_commits_data(pr_data: dict, token: str) -> tuple[str, str]:
+    headers = {
+        "Authorization": f"token {token}",
+        "Accept": "application/vnd.github.v3+json",
+    }
+
+    # Fetch commits from the original PR to get author info
+    commits_url = pr_data["commits_url"]
+    commits_response = requests.get(commits_url, headers=headers)
+    commits_response.raise_for_status()
+    commits = commits_response.json()
+
+    # Use the author info from the first commit in the PR
+    author_name = commits[0]["commit"]["author"]["name"]
+    author_email = commits[0]["commit"]["author"]["email"]
+    return author_name, author_email
+
+
 def _process_assets(
     repo_name: str, pr_body: str, pr_number: str | int, github_token: str
 ) -> str:
@@ -126,6 +144,8 @@ def _create_public_pr(
     source_repo: str,
     pr_data: dict,
     updated_body: str,
+    author_name: str,
+    author_email: str,
     github_token: str,
 ) -> str:
     """Create PR in public repository.
@@ -136,6 +156,8 @@ def _create_public_pr(
         source_repo: Source repository name
         pr_data: Original PR data
         updated_body: Updated PR body with replaced asset URLs
+        author_name: Original PR author's name
+        author_email: Original PR author's email
         github_token: GitHub token
 
     Returns:
@@ -150,16 +172,6 @@ def _create_public_pr(
         "Authorization": f"token {github_token}",
         "Accept": "application/vnd.github.v3+json",
     }
-
-    # Fetch commits from the original PR to get author info
-    commits_url = pr_data["commits_url"]
-    commits_response = requests.get(commits_url, headers=headers)
-    commits_response.raise_for_status()
-    commits = commits_response.json()
-
-    # Use the author info from the first commit in the PR
-    author_name = commits[0]["commit"]["author"]["name"]
-    author_email = commits[0]["commit"]["author"]["email"]
 
     # Create a dummy file and branch
     with tempfile.TemporaryDirectory() as tmpdir:
@@ -262,7 +274,7 @@ class Publisher:
     Args:
         source_repo: Source GitHub repository URL (e.g., "https://github.com/owner/repo")
         target_repo: Target GitHub repository URL (e.g., "https://github.com/owner/public-repo")
-        source_token: GitHub token (defaults to GITHUB_TOKEN env var)
+        source_token: GitHub token (defaults to GITHUB_SOURCE_TOKEN env var)
         target_token: GitHub token for target repo (defaults to GITHUB_TARGET_TOKEN env var)
 
     Example:
@@ -326,6 +338,8 @@ class Publisher:
         if not pr_data.get("merged"):
             print("Warning: PR is not merged")
 
+        author_name, author_email = _get_commits_data(pr_data, self.source_token)
+
         # Process assets (download, upload to LaminDB, replace URLs)
         updated_body = _process_assets(
             self.source_repo, pr_data["body"] or "", pull_id, self.source_token
@@ -338,6 +352,8 @@ class Publisher:
             self.source_repo,
             pr_data,
             updated_body,
+            author_name,
+            author_email,
             self.target_token,
         )
 
