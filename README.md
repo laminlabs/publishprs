@@ -12,6 +12,13 @@ Connect to the LaminDB instance to be used for assets management:
 lamin connect account/instance
 ```
 
+Export API tokens for GitHub's API:
+
+```shell
+export GITHUB_SOURCE_TOKEN=...  # token with access to source repo, to process assets, needs to be a classic token
+export GITHUB_TARGET_TOKEN=...  # token with access to target repo, to assign original user identity, should be fine-grained and issued by the original user account
+```
+
 Publish a PR:
 
 ```python
@@ -23,5 +30,3 @@ publisher = Publisher(
 url = publisher.publish(pull_id=3820)
 print(f"Published to: {url}")
 ```
-
-Note that downloading assets from GitHub URLs of the form `https://github.com/user-attachments/assets/47729149-22a5-481b-beb4-69bb609ae054` neither works with the auto-generated `GITHUB_TOKEN` within GitHub Actions nor the fine-grained modern access tokens. A classic token is needed.
