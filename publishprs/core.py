@@ -204,11 +204,11 @@ def _create_public_pr(
 
         subprocess.run(["git", "checkout", "-b", branch_name], cwd=repo_dir, check=True)
 
-        existing_content = (repo_dir / "docs/source-prs.md").read_text()
-        (repo_dir / "docs/source-prs.md").write_text(
+        existing_content = (repo_dir / "source-prs.txt").read_text()
+        (repo_dir / "source-prs.txt").write_text(
             f"{pr_data['number']}\n{existing_content}"
         )
-        subprocess.run(["git", "add", "docs/source-prs.md"], cwd=repo_dir, check=True)
+        subprocess.run(["git", "add", "source-prs.txt"], cwd=repo_dir, check=True)
 
         # Set environment variables to override committer info
         env = os.environ.copy()
